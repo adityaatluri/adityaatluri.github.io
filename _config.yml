@@ -1,9 +1,9 @@
 # main text of home
-name: John Doe
-bio: A Man who travels the world eating noodles
+name: Aditya Atluri
+bio: Who travel to beaches and registers on GPU cores
 
 # twitter summary info
-description: A blog about technology and stuff related
+description: A blog about GPUs
 
 # if it's an external image, update below for true
 # better with square images
@@ -42,15 +42,15 @@ twitter: mytwitter
 # linkedin: mylinkedin
 # youtube: myyoutube
 # spotify: myspotify
-github: mygithub
+github: adityaatluri
 # lastfm: mylastfm
 # stackoverflow: 7044681/mystackoverflow
 # quora: userquora
 # reddit: username
-medium: medium
+medium: adityaatluri
 # vimeo: myvimeo
 # lanyrd: mylanyrd
-email: myemail@gmail.com
+# email: myemail@gmail.com
 
 authors:
     johndoe:
