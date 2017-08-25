@@ -28,7 +28,7 @@ This is something anyone who did basic algebra would know. It is a row multiplie
 ![Markdowm Image][1]{: class="bigger-image" }
 <figcaption class="caption">Inner Product</figcaption>
 
-The number of math to load ops are: (4 MACs)/(4+4). This a bad ratio if you are doing gemm on throughput-optimized cores (GPUs). Then, how are BLAS libraries on GPUs able to achieve peak throughput? The answer is **Outer Product**
+> The number of math to load ops are: (4 MACs)/(4+4) = 0.5
 
 ## Outer Product
 An outer product is where a 1x4 (column) multiplied with 1x4 (row) giving a 4x4 matrix.
@@ -36,7 +36,7 @@ An outer product is where a 1x4 (column) multiplied with 1x4 (row) giving a 4x4 
 ![Markdowm Image][2]{: class="bigger-image" }
 <figcaption class="caption">Outer Product</figcaption>
 
-The number of math to load ops are: (16 MACs)/(4+4). This a good ratio for vector/simd processors (GPUs).
+> The number of math to load ops are: (16 MACs)/(4+4) = 2
 
 In this blog we implement outer product on different SIMD architectures (SSE, AVX, AVX512, AVX512-4FMAPS, AMD-GPU, NV-GPU, NV-TensorCores)
 
