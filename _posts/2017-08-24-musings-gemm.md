@@ -17,8 +17,27 @@ description: Musings on GEMM
 ---
 
 # Introduction
+With lot of emphasis on gemm performance for deep-learning, people found that implementing gemm on hardware can bring more performance than using latency optimized cores. This is not limited to just the cores, the memory access patterns are hard wired into the silicon there by getting data to cores as fast as possible.
+There are 2 ways of implementing GEMM operations:
+1. Inner Product
+2. Outer Product
 
-# SSE
+## Inner Product
+This is something anyone who did basic algebra would know. It is a row multiplied with a column. Given 1x4 (row) multiplied with 4x1 (column) gives 1x1 element.
+{% highlight cpp %}
+[a0 a1 a2 a3] [b1; b2; b3; b4]
+{% endhighlight %}
+
+The number of math to load ops are: (4 MACs)/(4+4). This a bad ratio if you are doing gemm on throughput-optimized cores (GPUs). Then, how are BLAS libraries on GPUs able to achieve peak throughput? The answer is **Outer Product**
+
+## Outer Product
+An outer product is where a 1x4 (column) multiplied with 1x4 (row) giving a 4x4 matrix.
+
+The number of math to load ops are: (16 MACs)/(4+4). This a good ratio for vector/simd processors (GPUs).
+
+In this blog we implement outer product on different SIMD architectures (SSE, AVX, AVX512, AVX512-4FMAPS, AMD-GPU, NV-GPU, NV-TensorCores)
+
+### SSE
 {% highlight cpp %}
 __m128 c0 = _mm_load_ps(C.data() + 0);
 __m128 c1 = _mm_load_ps(C.data() + 4);
@@ -38,10 +57,15 @@ for (int j = 0; j < 4; j++) {
 	c2 = _mm_add_ps(_mm_mul_ps(a2, b), c2);
 	c3 = _mm_add_ps(_mm_mul_ps(a3, b), c3);
 }
-  
+
 _mm_store_ps(C.data() + 0, c0);
 _mm_store_ps(C.data() + 4, c1);
 _mm_store_ps(C.data() + 8, c2);
 _mm_store_ps(C.data() + 12, c3);
-  
+
+{% endhighlight %}
+
+### AVX
+{% highlight cpp %}
+
 {% endhighlight %}
