@@ -24,15 +24,13 @@ There are 2 ways of implementing GEMM operations:
 
 ## Inner Product
 This is something anyone who did basic algebra would know. It is a row multiplied with a column. Given 1x4 (row) multiplied with 4x1 (column) gives 1x1 element.
-{% highlight cpp %}
-[a0 a1 a2 a3] [b1; b2; b3; b4]
-{% endhighlight %}
+(https://github.com/adityaatluri/adityaatluri.github.io/raw/master/assets/images/Slide1.JPG)
 
 The number of math to load ops are: (4 MACs)/(4+4). This a bad ratio if you are doing gemm on throughput-optimized cores (GPUs). Then, how are BLAS libraries on GPUs able to achieve peak throughput? The answer is **Outer Product**
 
 ## Outer Product
 An outer product is where a 1x4 (column) multiplied with 1x4 (row) giving a 4x4 matrix.
-
+(https://github.com/adityaatluri/adityaatluri.github.io/raw/master/assets/images/Slide2.JPG)
 The number of math to load ops are: (16 MACs)/(4+4). This a good ratio for vector/simd processors (GPUs).
 
 In this blog we implement outer product on different SIMD architectures (SSE, AVX, AVX512, AVX512-4FMAPS, AMD-GPU, NV-GPU, NV-TensorCores)
