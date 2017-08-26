@@ -142,15 +142,139 @@ __m256 c0 = _mm256_load_ps(C.data() + 0);
 
 ## Float GEMM
 {% highlight cpp %}
-__global__ void GEMM512x512(float4 *A, float4 *B, float *C){
+
+__global__ void GEMM(float4 *A, float4 *B, float4 *C) {
 	int tx = threadIdx.x;
-	__shared__ float4 sA[];
+	float4 a, b, c[4];
+	float4 *Aptr = A + (tx / 2);
+	float4 *Bptr = B + (tx % 2);
+	c[0] = C[0 + (tx / 2)*8 + (tx % 2)];
+	c[1] = C[2 + (tx / 2)*8 + (tx % 2)];
+	c[2] = C[4 + (tx / 2)*8 + (tx % 2)];
+	c[3] = C[6 + (tx / 2)*8 + (tx % 2)];
+	for (int i = 0; i < A_WIDTH; i++) {
+		a = *(Aptr + i * 2);
+		b = *(Bptr + i * 2);
+		c[0].x += a.x * b.x;
+		c[0].y += a.x * b.y;
+		c[0].z += a.x * b.z;
+		c[0].w += a.x * b.w;
+
+		c[1].x += a.y * b.x;
+		c[1].y += a.y * b.y;
+		c[1].z += a.y * b.z;
+		c[1].w += a.y * b.w;
+
+		c[2].x += a.z * b.x;
+		c[2].y += a.z * b.y;
+		c[2].z += a.z * b.z;
+		c[2].w += a.z * b.w;
+
+		c[3].x += a.w * b.x;
+		c[3].y += a.w * b.y;
+		c[3].z += a.w * b.z;
+		c[3].w += a.w * b.w;
+	}
+	C[0 + (tx / 2)*8 + (tx % 2)] = c[0];
+	C[2 + (tx / 2)*8 + (tx % 2)] = c[1];
+	C[4 + (tx / 2)*8 + (tx % 2)] = c[2];
+	C[6 + (tx / 2)*8 + (tx % 2)] = c[3];
 }
+
 {% endhighlight %}
 
 ## Half2 GEMM
 
+{% highlight cpp %}
+
+typedef struct {
+	__half2 x, y, z, w;
+}__half8;
+
+__global__ void GEMM(__half8 *A, __half8 *B, __half8 *C) {
+	int tx = threadIdx.x;
+	__half8 a, b, c[4];
+	__half8 *Aptr = A + (tx / 2);
+	__half8 *Bptr = B + (tx % 2);
+	c[0] = C[0 + (tx / 2) * 8 + (tx % 2)];
+	c[1] = C[2 + (tx / 2) * 8 + (tx % 2)];
+	c[2] = C[4 + (tx / 2) * 8 + (tx % 2)];
+	c[3] = C[6 + (tx / 2) * 8 + (tx % 2)];
+	for (int i = 0; i < A_WIDTH; i++) {
+		a = *(Aptr + i * 2);
+		b = *(Bptr + i * 2);
+		c[0].x = __hfma2(a.x, b.x, c[0].x);
+		c[0].y = __hfma2(a.x, b.y, c[0].y);
+		c[0].z = __hfma2(a.x, b.z, c[0].z);
+		c[0].w = __hfma2(a.x, b.w, c[0].w);
+
+		c[1].x = __hfma2(a.y, b.x, c[1].x);
+		c[1].y = __hfma2(a.y, b.y, c[1].y);
+		c[1].z = __hfma2(a.y, b.z, c[1].z);
+		c[1].w = __hfma2(a.y, b.w, c[1].w);
+
+		c[2].x = __hfma2(a.z, b.x, c[2].x);
+		c[2].y = __hfma2(a.z, b.y, c[2].y);
+		c[2].z = __hfma2(a.z, b.z, c[2].z);
+		c[2].w = __hfma2(a.z, b.w, c[2].w);
+
+		c[3].x = __hfma2(a.w, b.x, c[3].x);
+		c[3].y = __hfma2(a.w, b.y, c[3].y);
+		c[3].z = __hfma2(a.w, b.z, c[3].z);
+		c[3].w = __hfma2(a.w, b.w, c[3].w);
+	}
+	C[0 + (tx / 2) * 8 + (tx % 2)] = c[0];
+	C[2 + (tx / 2) * 8 + (tx % 2)] = c[1];
+	C[4 + (tx / 2) * 8 + (tx % 2)] = c[2];
+	C[6 + (tx / 2) * 8 + (tx % 2)] = c[3];
+}
+
+
+{% endhighlight %}
+
 ## Int4 GEMM
+
+{% highlight cpp %}
+
+__global__ void GEMM(int4 *A, int4 *B, int4 *C) {
+	int tx = threadIdx.x;
+	int4 a, b, c[4];
+	int4 *Aptr = A + (tx / 2);
+	int4 *Bptr = B + (tx % 2);
+	c[0] = C[0 + (tx / 2) * 8 + (tx % 2)];
+	c[1] = C[2 + (tx / 2) * 8 + (tx % 2)];
+	c[2] = C[4 + (tx / 2) * 8 + (tx % 2)];
+	c[3] = C[6 + (tx / 2) * 8 + (tx % 2)];
+	for (int i = 0; i < A_WIDTH; i++) {
+		a = *(Aptr + i * 2);
+		b = *(Bptr + i * 2);
+		c[0].x = __dp4a(a.x, b.x, c[0].x);
+		c[0].y = __dp4a(a.x, b.y, c[0].y);
+		c[0].z = __dp4a(a.x, b.z, c[0].z);
+		c[0].w = __dp4a(a.x, b.w, c[0].w);
+
+		c[1].x = __dp4a(a.y, b.x, c[1].x);
+		c[1].y = __dp4a(a.y, b.y, c[1].y);
+		c[1].z = __dp4a(a.y, b.z, c[1].z);
+		c[1].w = __dp4a(a.y, b.w, c[1].w);
+
+		c[2].x = __dp4a(a.z, b.x, c[2].x);
+		c[2].y = __dp4a(a.z, b.y, c[2].y);
+		c[2].z = __dp4a(a.z, b.z, c[2].z);
+		c[2].w = __dp4a(a.z, b.w, c[2].w);
+
+		c[3].x = __dp4a(a.w, b.x, c[3].x);
+		c[3].y = __dp4a(a.w, b.y, c[3].y);
+		c[3].z = __dp4a(a.w, b.z, c[3].z);
+		c[3].w = __dp4a(a.w, b.w, c[3].w);
+	}
+	C[0 + (tx / 2) * 8 + (tx % 2)] = c[0];
+	C[2 + (tx / 2) * 8 + (tx % 2)] = c[1];
+	C[4 + (tx / 2) * 8 + (tx % 2)] = c[2];
+	C[6 + (tx / 2) * 8 + (tx % 2)] = c[3];
+}
+
+{% endhighlight %}
 
 ## WMMA GEMM
 
