@@ -181,7 +181,14 @@ __global__ void GEMM(float4 *A, float4 *B, float4 *C) {
 ## Half2 GEMM
 
 {% highlight cpp %}
-typedef __fp16 half8 __attribute__((ext_vector_type(8)));
+
+typedef __fp16 half4 __attribute__((ext_vector_type(4)));
+
+typedef struct {
+	half4 p, q;
+}half8;
+
+extern "C" half4 __v_pk_fma_f16(half4, half4, half4) __asm("llvm.fma.v2f16");
 
 __global__ void GEMM(half8 *A, half8 *B, half8 *C) {
 	int tx = threadIdx.x;
@@ -195,6 +202,9 @@ __global__ void GEMM(half8 *A, half8 *B, half8 *C) {
 	for (int i = 0; i < A_WIDTH; i++) {
 		a = *(Aptr + i * 2);
 		b = *(Bptr + i * 2);
+
+		c[0].p.xy = __v_pk_fma_f16(a.p.xx, b.p.xy, c[0].p.xy);
+		c[0].p.xy = __v_pk_fma_f16(a.p.yy, b.p.zw, c[0].p.xy);
 
 	}
 	C[0 + (tx / 2)*8 + (tx % 2)] = c[0];
