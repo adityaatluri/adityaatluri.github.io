@@ -113,3 +113,55 @@ __global__ void GEMM(__half8 *A, __half8 *B, __half8 *C) {
     C[14 + (tx / 2) * 8 + (tx % 2)].q = c[15];
 
 }
+
+#define HEIGHT 8
+#define WIDTH 8
+
+__global__ void GEMM(__half4 *A, __half4 *B, float *C) {
+    int tx = hipThreadIdx_x;
+    __half4 a, b;
+    float c[16];
+    __half4 *Aptr = A + (tx / 2);
+    __half4 *Bptr = B + (tx % 2);
+
+    for(int i=0;i<4;i++){
+      c[0 + i*4] = C[0 + i * 8 + (tx / 2) * 32 + (tx % 2)*4];
+      c[1 + i*4] = C[1 + i * 8 + (tx / 2) * 32 + (tx % 2)*4];
+      c[2 + i*4] = C[2 + i * 8 + (tx / 2) * 32 + (tx % 2)*4];
+      c[3 + i*4] = C[3 + i * 8 + (tx / 2) * 32 + (tx % 2)*4];
+    }
+
+    for (int i = 0; i < WIDTH; i++) {
+        a = *(Aptr + i * 2);
+        b = *(Bptr + i * 2);
+
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,0] op_sel_hi:[0,1,1]": "=v"(c[0]): "v"(a.xy), "v"(b.xy), "v"(c[0]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,1] op_sel_hi:[0,1,1]": "=v"(c[1]): "v"(a.xy), "v"(b.xy), "v"(c[1]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,0] op_sel_hi:[0,1,1]": "=v"(c[2]): "v"(a.xy), "v"(b.zw), "v"(c[2]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,1] op_sel_hi:[0,1,1]": "=v"(c[3]): "v"(a.xy), "v"(b.zw), "v"(c[3]));
+
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[4]): "v"(a.xy), "v"(b.xy), "v"(c[4]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,1] op_sel_hi:[0,1,1]": "=v"(c[5]): "v"(a.xy), "v"(b.xy), "v"(c[5]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[6]): "v"(a.xy), "v"(b.zw), "v"(c[6]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,1] op_sel_hi:[0,1,1]": "=v"(c[7]): "v"(a.xy), "v"(b.zw), "v"(c[7]));
+
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,0] op_sel_hi:[0,1,1]": "=v"(c[8]): "v"(a.zw), "v"(b.xy), "v"(c[8]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,1] op_sel_hi:[0,1,1]": "=v"(c[9]): "v"(a.zw), "v"(b.xy), "v"(c[9]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,0] op_sel_hi:[0,1,1]": "=v"(c[10]): "v"(a.zw), "v"(b.zw), "v"(c[10]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,1] op_sel_hi:[0,1,1]": "=v"(c[11]): "v"(a.zw), "v"(b.zw), "v"(c[11]));
+
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[12]): "v"(a.zw), "v"(b.xy), "v"(c[12]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,1] op_sel_hi:[0,1,1]": "=v"(c[13]): "v"(a.zw), "v"(b.xy), "v"(c[13]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[14]): "v"(a.zw), "v"(b.zw), "v"(c[14]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,1] op_sel_hi:[0,1,1]": "=v"(c[15]): "v"(a.zw), "v"(b.zw), "v"(c[15]));
+
+    }
+
+    for(int i=0;i<4;i++){
+      C[0 + i * 8 + (tx / 2) * 32 + (tx % 2)*4] = c[0 + i*4];
+      C[1 + i * 8 + (tx / 2) * 32 + (tx % 2)*4] = c[1 + i*4];
+      C[2 + i * 8 + (tx / 2) * 32 + (tx % 2)*4] = c[2 + i*4];
+      C[3 + i * 8 + (tx / 2) * 32 + (tx % 2)*4] = c[3 + i*4];
+    }
+
+}
