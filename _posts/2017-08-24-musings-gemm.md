@@ -39,12 +39,20 @@ An outer product is where a 1x4 (column) multiplied with 1x4 (row) giving a 4x4 
 > The number of math to load ops are: (16 MACs)/(4+4) = 2
 
 ### Analysis
-In terms of load registers, the number is same for both A and B, but the output for inner product requires only 1 register where as outer product requires 16 registers (assuming datatype is float). It is a trade-off that user should decide on whether to have less compute per load or use more registers to do better computer per load. Generally, using outer product is the best way to do gemm as most of the SIMD architectures have big enough register files to store the C matrix (AVX, AMD-GPU, NV-GPU)
+In terms of load registers, the number is same for both A and B, but the output for inner product requires only 1 register where as outer product requires 16 registers (assuming datatype is float). It is a trade-off that user should decide on whether to have less compute per load or use more registers to do better computer per load. Generally, using outer product is the best way to do gemm as most of the SIMD architectures have big enough register files to store the output matrix (AVX, AMD-GPU, NV-GPU)
 
-In this blog we implement outer product on different SIMD architectures: X86, AMDGPU, NVGPU
+In this blog we implement outer product on different SIMD architectures: X86, AMDGPU, NVGPU but we won't write super-optimized code as it usually take huge teams of experienced programmers months to achieve peak performance of the hardware.
+
+> Row-Major Matrix: Consecutive elements of row are next to each other in memory
+> For Matrix [a0, a1, a2; a3, a4, a5; a6, a7, a8], the memory layout will be {a0, a1, a2, a3, a4, a5, a6, a7, a8}
+
+> Column-Major Matrix: Consecutive elements of column are next to each other in memory
+> For Matrix [b0, b1, b2; b3, b4, b5; b6, b7, b8], the memory layout will be {b0, b3, b6, b1, b4, b7, b2, b5, b8}
+
+Throughout this blog we name *A* as the first matrix which gets multiplied to matrix *B* and stored in matrix *C*. The matrix *A* is column-major, *B* is row-major and *C* is row-major (unless otherwise stated). It is not always possible to have the input and output matrices to be the same formats as *A*, *B* and *C*. Hence, transposing need to be done before loading into registers.
 
 # X86
-X86 CPUs support SIMD instructions like `SSE`, `AVX`, `AVX512` and the latest `AVX512-4FMAPS`
+X86 CPUs support SIMD instructions like `SSE`, `AVX`, `AVX512` and the latest `AVX512-4FMAPS` The *A* matrix for X86 extensions is row-major instead of column-major.
 ## SSE
 SSE are SIMD instructions operating on 128-bit wide data. Each SSE register (xmm0-xmm15) can hold 4 32-bit or 2 64-bit data types and operate on floats, int and double. For x86, we focus on just floats as halfs are emulated using shorts and doubles are over kill for machine learning applications.
 
@@ -75,7 +83,12 @@ _mm_store_ps(C.data() + 12, c3);
 
 {% endhighlight %}
 
-As `__m128` can store 4 floats, we need 4 `__m128`s to store the 4x4 output matrix (c0,c1,c2,c3). The first row of the output matrix needs just a0 and first row of b matrix. We broadcast a0 to the 4 SIMD lanes and do multiply-and-add between broadcasted-a0 and b. Do the same for rest of the `a` elements (a1, a2 and a3).
+As `__m128` can store 4 floats, we need 4 `__m128`s to store the 4x4 output matrix (c0,c1,c2,c3). The first row of the output matrix needs just a0 and first row of b matrix. We broadcast a0 to the 4 SIMD lanes and do multiply-and-add between broadcasted-a0 and b. Do the same for rest of the `a` elements (a1, a2 and a3). We iterate over 4 SIMD widths to get column of *A* and row *B* multiplied.
+
+> The number of loads = 4 (ld C) + 4 * 4 (ld A) + 1 * 4 (ld B) = 24 loads
+> The number of fma = 4 * 4 * 4 = 64 fmas
+> Compute / Memory = 64 / 24 = 2.66
+> Number of `__m128` registers used = 4 (c) + 1 (b) + 4 (a) = 9
 
 ## AVX
 {% highlight cpp %}
@@ -125,6 +138,14 @@ _mm256_storeu_ps(C.data() + 48, c2);
 _mm256_storeu_ps(C.data() + 56, c3);
 
 {% endhighlight %}
+
+As AVX can load 8 floats into YMM registers (YMM0-YMM15), we load 8x8 sub-matrix of *A*, *B* and *C*. As the number of registers for AVX double from SSE, we can afford to load 8 `__m256` into them. The implementation is same as SSE with the matrix size scaled by 4.
+
+> The number of loads = 8 (ld C)  + 8 * 8 (ld A) + 1 * 8 (ld B) = 80 loads
+> The number of compute = 8 * 8 * 8 fmas = 512 fmas
+> Compute / Memory = 512 / 80 = 6.4
+> The number of registers used = 8 (c) + 8 (a) + 1 (b) = 17
+
 
 ## AVX512
 
