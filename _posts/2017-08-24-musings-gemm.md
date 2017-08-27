@@ -152,14 +152,18 @@ As AVX can load 8 floats into YMM registers (YMM0-YMM15), we load 8x8 sub-matrix
 
 # AMDGPU
 
+The code written for AMD GPUs targets the latest Vega architecture (gfx9). Vega adds new ISA for half precision and mixed precision math ops. But, lets start with traditional `float` gemm, we use `float4` vector type as we do 4x4 sub-matrix multiplication on each work-item. Which means, a 4x4 sub-matrix of output matrix is computed by each work-item. For all the kernels we do 8x8 * 8x8 matrix where we launch 4 threads each doing a quadrent of 4x4 elements. Each work-item will load a 4x8 of *A* and 8x4 of *B* and store 4x4 of *C*. Using `float4` improves the global memory bandwidth.
+
 ## Float GEMM
 
 {% highlight cpp %}
 
+#define WIDTH 4
+
 typedef float float4 __attribute__((ext_vector_type(4)));
 
 __global__ void GEMM(float4 *A, float4 *B, float4 *C) {
-	int tx = threadIdx.x;
+	int tx = hipThreadIdx_x;
 	float4 a, b, c[4];
 	float4 *Aptr = A + (tx / 2);
 	float4 *Bptr = B + (tx % 2);
@@ -167,7 +171,7 @@ __global__ void GEMM(float4 *A, float4 *B, float4 *C) {
 	c[1] = C[2 + (tx / 2)*8 + (tx % 2)];
 	c[2] = C[4 + (tx / 2)*8 + (tx % 2)];
 	c[3] = C[6 + (tx / 2)*8 + (tx % 2)];
-	for (int i = 0; i < A_WIDTH; i++) {
+	for (int i = 0; i < WIDTH; i++) {
 		a = *(Aptr + i * 2);
 		b = *(Bptr + i * 2);
 		c[0].x += a.x * b.x;
@@ -218,7 +222,7 @@ typedef struct {
 extern "C" __half4 __v_pk_fma_f16(__half4, __half4, __half4) __asm("llvm.fma.v2f16");
 
 __global__ void GEMM(__half8 *A, __half8 *B, __half8 *C) {
-    int tx = threadIdx.x;
+    int tx = hipThreadIdx_x;
     __half4 a0, a1, b0, b1, c[16];
     __half8 *Aptr = A + (tx / 2);
     __half8 *Bptr = B + (tx % 2);
@@ -299,7 +303,7 @@ __global__ void GEMM(__half8 *A, __half8 *B, __half8 *C) {
 #define WIDTH 8
 
 __global__ void GEMM(__half4 *A, __half4 *B, float *C) {
-    int tx = threadIdx.x;
+    int tx = hipThreadIdx_x;
     __half4 a, b;
     float c[16];
     __half4 *Aptr = A + (tx / 2);
