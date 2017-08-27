@@ -323,7 +323,7 @@ __global__ void GEMM(__half4 *A, __half4 *B, float *C) {
         asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,0,1] op_sel_hi:[0,1,1]": "=v"(c[11]): "v"(a.zw), "v"(b.zw), "v"(c[11]));
 
         // c[12] = a.w * b.x + c[12]
-				asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[12]): "v"(a.zw), "v"(b.xy), "v"(c[12]));
+        asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,0] op_sel_hi:[0,1,1]": "=v"(c[12]): "v"(a.zw), "v"(b.xy), "v"(c[12]));
         // c[13] = a.w * b.y + c[13]
         asm volatile("v_mad_mix_f32 %0, %1, %2, %3 op_sel:[0,1,1] op_sel_hi:[0,1,1]": "=v"(c[13]): "v"(a.zw), "v"(b.xy), "v"(c[13]));
         // c[14] = a.w * b.z + c[14]
