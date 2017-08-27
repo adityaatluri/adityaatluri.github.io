@@ -152,7 +152,7 @@ As AVX can load 8 floats into YMM registers (YMM0-YMM15), we load 8x8 sub-matrix
 
 # AMDGPU
 
-The code written for AMD GPUs targets the latest Vega architecture (gfx9). Vega adds new ISA for half precision and mixed precision math ops. But, lets start with traditional `float` gemm, we use `float4` vector type as we do 4x4 sub-matrix multiplication on each work-item. Which means, a 4x4 sub-matrix of output matrix is computed by each work-item. For all the kernels we do 8x8 * 8x8 matrix where we launch 4 threads each doing a quadrent of 4x4 elements. Each work-item will load a 4x8 of *A* and 8x4 of *B* and store 4x4 of *C*. Using `float4` improves the global memory bandwidth.
+The code written for AMD GPUs targets the latest Vega architecture (gfx9). Vega adds new ISA for half precision and mixed precision math ops. But, lets start with traditional `float` gemm, we use `float4` vector type as we do 4x4 sub-matrix multiplication on each work-item. Which means, a 4x4 sub-matrix of output matrix is computed by each work-item. For all the kernels we do 8x8 * 8x8 matrix where we launch 4 threads each doing a quadrant of 4x4 elements. Each work-item will load a 4x8 of *A* and 8x4 of *B* and store 4x4 of *C*. Using `float4` improves the global memory bandwidth.
 
 ## Float GEMM
 
@@ -203,6 +203,9 @@ __global__ void GEMM(float4 *A, float4 *B, float4 *C) {
 {% endhighlight %}
 
 ## Half2 GEMM
+
+The half2 gemms are bit complicated as one need to transpose sub-dwords to do outer product on other matrix configurations. For one, the matrices stored into LDS (shared memory) as transpose increases the number of instructions there by increasing requests to LDS memory controller. And, the increased number of bank conflicts as the size of each element in LDS is 32bit, where storing multiple halfs to that element takes 2 cycles. This is solved in Vega by enabling operand selector modifier to packed math isa.
+Looking at the first packed math instruction, `c[0].xy = __v_pk_fma_f16(a0.xx, b0.xy, c[0].xy);` the `a0.xx` is like broadcast we have seen for SSE.
 
 {% highlight cpp %}
 
