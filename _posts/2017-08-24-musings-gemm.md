@@ -204,7 +204,7 @@ __global__ void GEMM(float4 *A, float4 *B, float4 *C) {
 
 ## Half2 GEMM
 
-The half2 gemms are bit complicated as one need to transpose sub-dwords to do outer product on other matrix configurations. For one, the matrices stored into LDS (shared memory) as transpose increases the number of instructions there by increasing requests to LDS memory controller. And, the increased number of bank conflicts as the size of each element in LDS is 32bit, where storing multiple halfs to that element takes 2 cycles. This is solved in Vega by enabling operand selector modifier to packed math isa.
+The half2 gemms are bit complicated as one need to transpose sub-dwords to do outer product on other matrix configurations. For one, the matrices stored into LDS (shared memory) as transpose increases the number of lds read instructions there by increasing requests to LDS memory controller. And, it also increases the number of bank conflicts as the size of each read instruction is `ds_read_u16` instead of `ds_read_b64`, where loading multiple halfs to a 32-bit element takes 2 cycles. This is solved in Vega by enabling operand selector modifier to packed math isa.
 Looking at the first packed math instruction, `c[0].xy = __v_pk_fma_f16(a0.xx, b0.xy, c[0].xy);` the `a0.xx` is like broadcast we have seen for SSE.
 
 {% highlight cpp %}
